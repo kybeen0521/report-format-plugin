@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-r"""report_kit: 주제와 무관한 기술 보고서 빌더 (report.pdf 형식). 기본 산출물은 Word(.docx), 선택으로 PDF.
+r"""report_kit: 주제와 무관한 기술 보고서 Word(.docx) 빌더 (report.pdf 형식을 Word 로 옮긴 것).
 
-Word 는 python-docx, PDF 는 typst(pip 휠 하나)로 만든다. 같은 원고에서 같은 지면 값으로 둘 다 나온다.
-Word 미리보기는 설치된 Microsoft Word(Windows·WSL) 또는 LibreOffice 로 docx → PDF → 쪽 PNG. 둘 다 없으면 typst 근사.
+Word 는 python-docx 로 만든다. PDF 가 필요하면 Word 에서 "PDF 로 저장"한다(이 빌더는 PDF 를 만들지 않는다).
+미리보기는 설치된 Microsoft Word(Windows·WSL) 또는 LibreOffice 로 쪽 PNG 를 그린다. 둘 다 없으면 typst 근사 미리보기.
 필요한 것: Python 3 + `pip install python-docx typst`. 그림을 그리는 예제 스크립트만 matplotlib 을 쓴다(선택).
 
-  1) markdown 파일:   python3 report_kit.py build report.md [-o out.docx|out.pdf] [--format docx|pdf] [--font PATH|DIR] [--typ out.typ] [--preview [DIR]]
+  1) markdown 파일:   python3 report_kit.py build report.md [-o out.docx] [--preview [DIR]]
   2) Python API:      from report_kit import Report, num; r = Report(title, subtitle); r.h2(...); r.table(...); r.build("out.docx")
   미리보기:           python3 report_kit.py preview report.docx|report.md [--dir DIR] [--ppi 55]   → 쪽별 PNG + 접촉 시트(4쪽씩)
   환경 점검:          python3 report_kit.py doctor [--build]                          → python-docx·typst·폰트·Word 상태(--build: 예제를 실제로 빌드)
@@ -35,7 +35,7 @@ markdown 문법(최소 집합, 외부 패키지 불필요):
   ![그림 1. 캡션](a.png){width=66% regen="python3 fig.py --w {w_mm} --h {h_mm} --out {out}"}   셸 명령 재생성
   ![그림 1. 캡션](a.png){fit=off}                                                          자동 맞춤 끄기
   Python API: r.fig(path, cap, regen=lambda w_mm, h_mm: make(w_mm, h_mm)) → 새 PNG 경로를 돌려주는 함수.
-  미해결이 남으면 CLI 는 PDF 를 쓴 뒤 종료 코드 3(--lenient 로 끔), API 는 build(strict=True) 또는 REPORT_STRICT=1 일 때 3.
+  미해결이 남으면 CLI 는 docx 를 쓴 뒤 종료 코드 3(--lenient 로 끔), API 는 build(strict=True) 또는 REPORT_STRICT=1 일 때 3.
   그래프는 figsize_mm(w_mm, h_mm) 로 실제 크기 그대로 그리면 글자 pt 가 지면 pt 와 같다.
 
 숫자 표기(빌드 시 자동 점검, 경고):
@@ -548,27 +548,6 @@ def _compile(src, root, font_dirs, fmt=None, ppi=None):
     if ppi: kw["ppi"] = ppi
     return typst.compile(main, **kw)
 
-def render(doc, out_pdf, font=None, typ_out=None, preview_dir=None, ppi=55):
-    """Doc → PDF. 임시 폴더에 그림을 복사해 typst 의 경로 제약을 피한다. preview_dir 가 주어지면 쪽별 PNG 와 접촉 시트도 만든다."""
-    reg, bold, var, dirs = font_status(font)
-    if not reg and var:
-        sys.stderr.write("[report_kit] 가변 폰트만 있어 글자가 가늘게 나온다. `report_kit.py setup` 으로 정적 폰트를 받으시오.\n")
-    src = doc.typst()
-    if typ_out:
-        open(typ_out, "w", encoding="utf-8").write(src)
-    with tempfile.TemporaryDirectory() as td:
-        for name, path in doc.assets.items():
-            shutil.copy(path, os.path.join(td, name))
-        pdf = _compile(src, td, dirs)
-        os.makedirs(os.path.dirname(os.path.abspath(out_pdf)) or ".", exist_ok=True)
-        open(out_pdf, "wb").write(pdf)
-        pages, sheets = None, []
-        if preview_dir is not None:
-            pages, sheets = _preview_from_src(src, td, dirs, preview_dir or os.path.splitext(out_pdf)[0] + "_preview", ppi)
-    if doc.fit["tmp"]:
-        shutil.rmtree(doc.fit["tmp"], ignore_errors=True); doc.fit["tmp"] = None
-    return out_pdf, pages, sheets
-
 def _preview_from_src(src, root, font_dirs, out_dir, ppi=55):
     """쪽별 PNG(p01.png …) 와 접촉 시트(sheet1.png …, 4쪽씩). 모두 typst 로 그린다."""
     os.makedirs(out_dir, exist_ok=True)
@@ -966,15 +945,9 @@ def preview_docx(docx, out_dir, ppi=55):
     pages = _pdf_pngs(pdf, out_dir, ppi * 2); os.remove(pdf)
     return len(pages), _sheets(pages, out_dir, ppi), eng
 
-def build_any(doc, out, fmt=None, font=None, typ_out=None, preview_dir=None, ppi=55):
-    """fmt(없으면 out 확장자, 기본 docx)대로 빌드한다. 돌려주는 값: (경로, 쪽 수 또는 None, 시트 목록)."""
-    fmt = fmt or ("pdf" if out.lower().endswith(".pdf") else "docx")
-    if fmt == "pdf":
-        return render(doc, out, font, typ_out, preview_dir, ppi)
-    if not out.lower().endswith(".docx"):
-        out = os.path.splitext(out)[0] + ".docx"
-    if typ_out:
-        open(typ_out, "w", encoding="utf-8").write(doc.typst())
+def build_docx(doc, out, font=None, preview_dir=None, ppi=55):
+    """Word(.docx)로 빌드한다. 돌려주는 값: (경로, 쪽 수 또는 None, 시트 목록). font 는 근사 미리보기용 폰트."""
+    out = os.path.splitext(out)[0] + ".docx"
     render_docx(doc, out, cleanup=False)
     try:
         return (out,) + _docx_preview(doc, out, font, preview_dir, ppi)
@@ -1000,7 +973,7 @@ def _docx_preview(doc, out, font, preview_dir, ppi):
 
 # ---------------------------------------------------------------- Python API
 class Report:
-    """블록을 순서대로 쌓고 build() 로 PDF. 문자열 인자는 markdown 인라인(**굵게**, `코드`, <sub>, <br>) 을 받는다."""
+    """블록을 순서대로 쌓고 build() 로 Word(.docx). 문자열 인자는 markdown 인라인(**굵게**, `코드`, <sub>, <br>) 을 받는다."""
     def __init__(self, title, subtitle=""):
         self.doc = Doc(); self.doc.title(title, subtitle or None)
     def h2(self, t): self.doc.h2(t); return self
@@ -1019,12 +992,11 @@ class Report:
         self.doc.two("\n\n".join(l.parts), "\n\n".join(r.parts), l.plain_text() + "\n" + r.plain_text(), l.nodes, r.nodes); return self
     def eq(self, expr): self.doc.eq(expr); return self
     def pagebreak(self): self.doc.pagebreak(); return self
-    def raw(self, typst_markup): self.doc.add(typst_markup); return self    # PDF 전용. Word 출력에는 들어가지 않는다
-    def build(self, out, font=None, typ_out=None, preview_dir=None, strict=None, fmt=None):
-        """out 확장자가 .pdf 이거나 fmt="pdf" 면 PDF, 아니면 Word(.docx). strict(기본: 환경변수 REPORT_STRICT=1 이면 참)면
+    def build(self, out, preview_dir=None, strict=None, font=None):
+        """Word(.docx) 를 쓴다. strict(기본: 환경변수 REPORT_STRICT=1 이면 참)면
         그림 배치 미해결이 있을 때 파일을 쓴 뒤 종료 코드 3 으로 끝낸다."""
         report_checks(self.doc.plain_text()); left = fig_report(self.doc)
-        out, n, sheets = build_any(self.doc, out, fmt, font, typ_out, preview_dir)
+        out, n, sheets = build_docx(self.doc, out, font, preview_dir)
         if n is not None:
             print(f"pages: {n}; preview: {', '.join(sheets)}")
         print("saved:", out)
@@ -1094,7 +1066,7 @@ def _install_typst():
     print("venv: 설치 완료. 이후 report_kit.py 는 자동으로 이 venv 파이썬으로 실행된다"); return True
 
 def selftest():
-    """예제 보고서를 임시 폴더에 실제로 빌드해 쪽수·글꼴 내장을 확인한다. 문제 수를 돌려준다."""
+    """예제 보고서를 임시 폴더에 Word 로 실제로 빌드해 표·그림이 들어갔는지 확인한다. 문제 수를 돌려준다."""
     exd = os.path.join(SKILL_DIR, "examples"); ex = os.path.join(exd, "example_report.md"); mk = os.path.join(exd, "make_example_figs.py")
     if not os.path.exists(ex):
         print("  [--] selftest    examples/example_report.md 없음"); return 1
@@ -1114,16 +1086,7 @@ def selftest():
             n_tbl = xml.count("<w:tbl>")
             ok_docx = n_tbl >= 1 and len(media) >= 1 and "핵심 결과" in xml
             print(f"  [{'ok' if ok_docx else '--'}] selftest    예제 Word 빌드: 표(상자·2단 포함) {n_tbl}개, 그림 {len(media)}개")
-            ok_pdf = True
-            if _use_venv_site():
-                meta, doc = md_to_doc(text, td)
-                out = os.path.join(td, "selftest.pdf")
-                render(doc, out); pdf = open(out, "rb").read()
-                n = pdf.count(b"/Type /Page\n") or pdf.count(b"/Type/Page") or len(re.findall(rb"/Type\s*/Page[^s]", pdf))
-                kr = b"NotoSansKR" in pdf or b"NotoSansCJK" in pdf
-                ok_pdf = n >= 1 and kr
-                print(f"  [{'ok' if ok_pdf else '--'}] selftest    예제 PDF 빌드 {n}쪽, 한글 글꼴 내장 {'있음' if kr else '없음'}")
-            return 0 if ok_docx and ok_pdf else 1
+            return 0 if ok_docx else 1
         except Exception as e:
             print(f"  [--] selftest    빌드 실패: {type(e).__name__}: {str(e).splitlines()[0][:150]}"); return 1
 
@@ -1133,7 +1096,7 @@ def _selftest_preview():
         d = Doc(); d.title("미리보기 시험", "report_kit · 2026-01-01"); d.p("한글 test 1,234.567")
         out = os.path.join(td, "t.docx"); render_docx(d, out)
         eng, why = docx_to_pdf(out, os.path.join(td, "t.pdf"))
-        print(f"  [{'ok' if eng else '  '}] preview     " + (f"{eng} 로 docx → PDF 변환 통과" if eng else "변환 실패: " + "; ".join(why)[:150]))
+        print(f"  [{'ok' if eng else '  '}] preview     " + (f"{eng} 로 docx 쪽 그리기 통과" if eng else "변환 실패: " + "; ".join(why)[:150]))
 
 def doctor(build=False):
     """python-docx·typst·폰트·Word 상태를 출력하고 빠진 항목 수를 돌려준다. build=True 면 예제를 실제로 빌드해 본다."""
@@ -1141,37 +1104,38 @@ def doctor(build=False):
     print(f"skill dir : {SKILL_DIR}\npython    : {sys.executable}")
     _use_venv_site(); ok_docx, ok_typst = _has("docx"), _has("typst")
     print(f"  [{'ok' if ok_docx else '--'}] python-docx (Word 산출물)" + ("" if ok_docx else "   설치: python3 -m pip install python-docx"))
-    print(f"  [{'ok' if ok_typst else '--'}] typst       (PDF 산출물·근사 미리보기)" + ("" if ok_typst else "   설치: python3 -m pip install typst"))
-    n_bad += (0 if ok_docx else 1) + (0 if ok_typst else 1)
+    n_bad += 0 if ok_docx else 1
     word = (os.name == "nt" or os.path.exists(_PS)) and "Word(설치 여부는 --build 에서 확인)"
     eng = word or ("LibreOffice" if shutil.which("soffice") or shutil.which("libreoffice") else None)
     print(f"  [{'ok' if eng else '  '}] preview     Word 쪽 미리보기 엔진: {eng or '없음(typst 근사 미리보기로 대신)'}")
+    # typst·폰트는 Word·LibreOffice 가 없을 때의 근사 미리보기에만 쓴다. 그때만 필수로 센다
+    need = not eng; mark = "--" if need else "  "
+    print(f"  [{'ok' if ok_typst else mark}] typst       (근사 미리보기, Word 가 없을 때만 필요)" + ("" if ok_typst else "   설치: python3 -m pip install typst"))
+    n_bad += 1 if need and not ok_typst else 0
     reg, bold, var, dirs = font_status()
     if reg and bold:
-        print(f"  [ok] font        {os.path.dirname(reg)}  (Regular·Bold)")
-    elif reg or var:
-        print(f"  [--] font        {reg or var}  (정적 Regular·Bold 한 쌍이 아님: {'가변 폰트라 가늘게 나옴' if var and not reg else 'Bold 없음'})"); n_bad += 1
+        print(f"  [ok] font        {os.path.dirname(reg)}  (Regular·Bold, 근사 미리보기용)")
     else:
-        print("  [--] font        한글 폰트 없음"); n_bad += 1
+        print(f"  [{mark}] font        근사 미리보기용 정적 Noto Sans KR 없음"); n_bad += 1 if need else 0
     print(f"  [{'ok' if _has('matplotlib') else '  '}] matplotlib  (선택: 예제·그림 스크립트에만 필요)")
-    if ok_typst:
+    if ok_typst and reg and bold:
         try:
             with tempfile.TemporaryDirectory() as td:
                 _compile('#set text(font: "%s")\n한글 test 1,234.567' % FONT_FAMILY, td, dirs)
-            print("  [ok] render      PDF 시험 렌더 통과")
+            print("  [ok] render      근사 미리보기 시험 렌더 통과")
         except Exception as e:
-            print(f"  [--] render      실패: {type(e).__name__}: {str(e).splitlines()[0][:120]}"); n_bad += 1
-        if build and n_bad == 0:
-            n_bad += selftest()
-            if eng:
-                _selftest_preview()
+            print(f"  [{mark}] render      근사 미리보기 실패: {type(e).__name__}: {str(e).splitlines()[0][:120]}"); n_bad += 1 if need else 0
+    if build and n_bad == 0:
+        n_bad += selftest()
+        if eng:
+            _selftest_preview()
     if n_bad:
         print(f"준비: python3 {os.path.abspath(__file__)} setup")
     print("상태: " + ("준비됨" if n_bad == 0 else f"빠진 항목 {n_bad}개"))
     return n_bad
 
 def setup(do_pip=True, do_font=True):
-    """typst 가 없으면 pip 로 설치하고, 정적 한글 폰트(Regular·Bold)가 어디에도 없으면 사용자 데이터 폴더(DATA_DIR/fonts)에 내려받는다. 관리자 권한 불필요."""
+    """python-docx·typst(근사 미리보기용)가 없으면 pip 로 설치하고, 정적 한글 폰트(Regular·Bold)가 어디에도 없으면 사용자 데이터 폴더(DATA_DIR/fonts)에 내려받는다. 관리자 권한 불필요."""
     if do_pip and not (_has("typst") and _has("docx")):
         _install_typst()
         if not (_has("typst") and _has("docx")) and _venv_python():   # venv 에 설치됐으면 그 파이썬으로 이어서 점검한다
@@ -1193,14 +1157,14 @@ def setup(do_pip=True, do_font=True):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    b = sub.add_parser("build", help="markdown → Word(.docx, 기본) 또는 PDF")
-    b.add_argument("md"); b.add_argument("-o", "--out"); b.add_argument("--format", choices=("docx", "pdf"), help="산출 형식(기본: -o 확장자, 없으면 docx)"); b.add_argument("--font", help="폰트 파일 또는 폴더"); b.add_argument("--typ", help="생성한 typst 원본을 저장")
+    b = sub.add_parser("build", help="markdown → Word(.docx)")
+    b.add_argument("md"); b.add_argument("-o", "--out")
     b.add_argument("--preview", nargs="?", const="", help="쪽 미리보기 PNG 폴더(생략 시 <out>_preview)")
     b.add_argument("--lenient", action="store_true", help="그림 배치 미해결이 남아도 종료 코드 0")
-    v = sub.add_parser("preview", help="markdown → 쪽 PNG(typst 조판, 빌드 없이) 또는 .docx → 쪽 PNG(Word 로 그림)")
+    v = sub.add_parser("preview", help=".docx → 쪽 PNG(Word 로 그림) 또는 markdown → 쪽 PNG(typst 근사, 빌드 없이)")
     v.add_argument("md"); v.add_argument("--dir"); v.add_argument("--font"); v.add_argument("--ppi", type=int, default=55)
     dc = sub.add_parser("doctor", help="python-docx·typst·폰트·Word 점검"); dc.add_argument("--build", action="store_true", help="예제 보고서를 임시 폴더에 빌드해 검증")
-    st = sub.add_parser("setup", help="python-docx·typst 설치 + 한글 폰트 준비")
+    st = sub.add_parser("setup", help="python-docx·typst(근사 미리보기용) 설치 + 한글 폰트 준비")
     st.add_argument("--no-pip", action="store_true"); st.add_argument("--no-font", action="store_true")
     a = ap.parse_args()
     if a.cmd != "setup":
@@ -1227,11 +1191,8 @@ def main():
         out = meta.get("output") or os.path.splitext(os.path.basename(a.md))[0] + ".docx"
         if not os.path.isabs(out):
             out = os.path.join(base, out)
-    # 형식: --format > -o 의 확장자 > docx. 머리말 output 의 확장자는 형식을 정하지 않는다(이름만 쓴다)
-    fmt = a.format or ("pdf" if a.out and a.out.lower().endswith(".pdf") else "docx")
-    out = os.path.splitext(out)[0] + "." + fmt
     report_checks(doc.plain_text()); left = fig_report(doc)
-    out, n, sheets = build_any(doc, out, fmt, a.font or meta.get("font"), a.typ, a.preview if a.preview is not None else None)
+    out, n, sheets = build_docx(doc, out, meta.get("font"), a.preview if a.preview is not None else None)
     print("saved:", out)
     if n is not None:
         print(f"pages: {n}; preview: {', '.join(sheets)}")

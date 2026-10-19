@@ -1,19 +1,19 @@
 ---
 name: report-format
-description: 주제와 무관하게 기술 보고서를 Word(.docx, 기본) 또는 PDF(report.pdf 형식)로 만드는 스킬. "보고서 만들어", "보고서 워드", "보고서 docx", "보고서 PDF", "report.pdf", "정리 보고서", "결과 요약 보고서", "report format", "워드로 정리", "PDF 로 정리" 등 보고서 형태의 문서 산출 요청, 기존 보고서 갱신 요청, 보고서 형식 검토 요청 시 반드시 먼저 로드한다. references/rules.md 의 형식·작성 규칙과 이 파일의 내용 범위 규칙을 적용해 markdown 을 쓰고 scripts/report_kit.py 로 .docx 를 만든 뒤 Word 미리보기와 이 파일의 검수 체크리스트로 검수한다.
-compatibility: Claude Code. Python 3 only. scripts/report_kit.py setup runs `pip install python-docx typst` (no system libraries, no admin rights) and downloads the Korean font for PDF output. Word preview uses installed Microsoft Word (Windows or WSL) or LibreOffice when present, otherwise a typst approximation. matplotlib is optional (figure scripts); Pillow is optional (white-margin trimming, preview sheets); PyMuPDF is optional (preview pages).
+description: 주제와 무관하게 기술 보고서를 Word(.docx)로 만드는 스킬. "보고서 만들어", "보고서 워드", "보고서 docx", "정리 보고서", "결과 요약 보고서", "report format", "워드로 정리" 등 보고서 형태의 문서 산출 요청, 기존 보고서 갱신 요청, 보고서 형식 검토 요청 시 반드시 먼저 로드한다. references/rules.md 의 형식·작성 규칙과 이 파일의 내용 범위 규칙을 적용해 markdown 을 쓰고 scripts/report_kit.py 로 .docx 를 만든 뒤 Word 미리보기와 이 파일의 검수 체크리스트로 검수한다.
+compatibility: Claude Code. Python 3 only. scripts/report_kit.py setup runs `pip install python-docx typst` (no system libraries, no admin rights); typst and a downloaded Korean font are only used for an approximate preview when neither Microsoft Word (Windows or WSL) nor LibreOffice is present. No PDF output: users save the .docx as PDF from Word. matplotlib is optional (figure scripts); Pillow is optional (white-margin trimming, preview sheets); PyMuPDF is optional (preview pages).
 metadata:
-  version: "3.0"
+  version: "3.1"
   author: kybeen0521
 ---
 
 # 기술 보고서 형식 (report-format)
 
-A4 한글 기술 보고서를 일정한 형식의 **Word(.docx)** 로 만든다. 같은 원고로 PDF 도 낼 수 있다(`--format pdf`). 형식은 2026-09 산출 `report.pdf` 를 역설계한 것이며 주제·분야에 묶이지 않는다. 자료 분석, 시험 결과 정리, 방법 설명, 검토 의견 등 어떤 내용이든 이 형식으로 낸다.
+A4 한글 기술 보고서를 일정한 형식의 **Word(.docx)** 로 만든다. PDF 는 만들지 않는다(필요하면 사용자가 Word 에서 PDF 로 저장한다). 형식은 2026-09 산출 `report.pdf` 를 역설계한 것이며 주제·분야에 묶이지 않는다. 자료 분석, 시험 결과 정리, 방법 설명, 검토 의견 등 어떤 내용이든 이 형식으로 낸다.
 
 ## 발동 조건
-- 보고서·정리 문서·결과 요약을 **Word 또는 PDF 로** 만들거나 고치는 모든 요청. 형식을 말하지 않으면 Word.
-- 기존 보고서(`report.docx`, `report.pdf`)의 내용 갱신(수치·그림 교체) 요청.
+- 보고서·정리 문서·결과 요약을 만들거나 고치는 모든 요청. 산출물은 Word(.docx) 하나. PDF 를 요청받아도 docx 를 만들고 Word 에서 PDF 로 저장하라고 안내한다.
+- 기존 보고서(`report.docx`)의 내용 갱신(수치·그림 교체) 요청.
 - "이 형식으로", "보고서처럼 정리" 같은 형식 지정 요청.
 - 논문 원고(KSFM 등)는 이 스킬이 아니라 논문 형식 스킬을 쓴다. 보고서와 논문은 형식이 다르다.
 
@@ -23,7 +23,7 @@ A4 한글 기술 보고서를 일정한 형식의 **Word(.docx)** 로 만든다.
 - 플러그인 없이 쓸 때는 이 폴더를 `~/.claude/skills/report-format/`(모든 프로젝트) 또는 저장소의 `.claude/skills/report-format/`(그 저장소만)에 복사해도 같다.
 - 아래 명령의 `${CLAUDE_SKILL_DIR}` 는 Claude Code 가 **이 SKILL.md 가 있는 폴더**로 치환하는 변수다. 치환되지 않는 환경이면 이 SKILL.md 가 있는 폴더 경로를 직접 넣는다. 스크립트는 폴더 안 상대 경로만 쓰므로 위치를 옮겨도 고칠 것이 없다.
 - 설치 폴더는 플러그인 갱신 때 바뀔 수 있다. 내려받은 폰트·예비 venv 는 설치 폴더가 아니라 사용자 데이터 폴더에 두므로 갱신 뒤에도 남는다. 산출물(보고서·미리보기)은 설치 폴더가 아니라 원고 옆에 쓴다.
-- 처음 쓰는 PC 에서는 `python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py setup` 한 번으로 Word 빌더 `python-docx` 와 PDF 조판 엔진 `typst`(둘 다 pip 패키지, 시스템 라이브러리·관리자 권한 불필요)를 설치하고 한글 폰트 두 파일(Regular·Bold)을 사용자 데이터 폴더(`~/.local/share/report-format/fonts`, Windows 는 `%LOCALAPPDATA%\report-format\fonts`)에 내려받는다. 플러그인을 갱신해도 남는다. Windows·macOS·Linux 모두 같다.
+- 처음 쓰는 PC 에서는 `python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py setup` 한 번으로 Word 빌더 `python-docx` 와, Word 가 없는 PC 의 근사 미리보기용 `typst`(둘 다 pip 패키지, 시스템 라이브러리·관리자 권한 불필요)를 설치하고 근사 미리보기용 한글 폰트 두 파일(Regular·Bold)을 사용자 데이터 폴더(`~/.local/share/report-format/fonts`, Windows 는 `%LOCALAPPDATA%\report-format\fonts`)에 내려받는다. 플러그인을 갱신해도 남는다. Windows·macOS·Linux 모두 같다.
 
 ## 절차 (순서대로)
 
@@ -31,7 +31,7 @@ A4 한글 기술 보고서를 일정한 형식의 **Word(.docx)** 로 만든다.
 ```
 python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py doctor --build
 ```
-"준비됨" 이 아니면 `setup` 을 먼저 돌린다. `--build` 는 예제 보고서를 임시 폴더에 Word·PDF 로 실제로 만들어 보고, Word 미리보기 엔진(설치된 Microsoft Word 또는 LibreOffice)이 docx 를 PDF 로 바꿀 수 있는지 확인한다. 이 단계는 PC 마다 한 번이면 된다.
+"준비됨" 이 아니면 `setup` 을 먼저 돌린다. `--build` 는 예제 보고서를 임시 폴더에 Word 로 실제로 만들어 보고, Word 미리보기 엔진(설치된 Microsoft Word 또는 LibreOffice)이 docx 쪽을 그릴 수 있는지 확인한다. 이 단계는 PC 마다 한 번이면 된다.
 
 ### 1단계: 규칙 로드
 `references/rules.md`(F 부 지면·블록·장 구성, W 부 문장·표·캡션·그림 규칙)와 이 파일의 **보고서 내용 범위 규칙** 절을 **작성 전에** 읽는다. 기억에 의존하지 않고 매번 읽는다. 검수 항목은 이 파일 끝의 체크리스트다.
@@ -73,14 +73,11 @@ markdown 파일 하나에 쓴다. 문법은 `scripts/report_kit.py` 머리 주�
 
 ### 5단계: 빌드와 미리보기
 ```
-python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py build 원고.md --preview              # Word(.docx), 기본
-python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py build 원고.md --format pdf --preview # PDF
+python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py build 원고.md --preview
 ```
-- 형식은 `--format` → `-o` 의 확장자(`.pdf`/`.docx`) → Word 순으로 정한다. 사용자가 PDF 를 말하지 않으면 Word 로 낸다.
-- Word 글꼴은 **맑은 고딕**(Windows 기본 글꼴이라 받는 PC 에서도 같다). 그림은 docx 안에 들어가고 지면 값(여백·크기·3선 표·장 띠·상자)은 PDF 와 같다.
-- Word 미리보기는 설치된 Microsoft Word(Windows, 또는 WSL 에서 Windows 의 Word) → LibreOffice 순으로 docx 를 PDF 로 바꿔 쪽 PNG 를 만든다. 실제 Word 쪽 나눔 그대로다. 둘 다 없으면 typst 근사 미리보기로 대신하고 경고를 낸다(쪽 나눔이 Word 와 다를 수 있다). 이미 만든 docx 는 `report_kit.py preview 보고서.docx` 로 다시 볼 수 있다.
-- PDF 폰트는 `--font` → `REPORT_FONT` 환경변수 → `fonts/`(스킬 폴더 안) → 사용자 데이터 폴더 → 사용자·시스템 폰트 폴더 순으로 정적 Noto Sans KR Regular·Bold 한 쌍을 찾는다. 시스템 글꼴은 조판에 쓰지 않으므로 PC 가 달라도 출력이 같다. 수식 세리프는 typst 내장 Libertinus.
-- `--typ 파일.typ` 를 주면 생성된 typst 원본을 남긴다(PDF 배치 문제를 손으로 살필 때).
+- 산출물은 `.docx` 하나다. PDF 는 만들지 않는다.
+- Word 글꼴은 **맑은 고딕**(Windows 기본 글꼴이라 받는 PC 에서도 같다). 그림은 docx 안에 들어가고 지면 값(여백·크기·3선 표·장 띠·상자)은 `rules.md` F 부를 따른다.
+- Word 미리보기는 설치된 Microsoft Word(Windows, 또는 WSL 에서 Windows 의 Word) → LibreOffice 순으로 docx 쪽을 그려 PNG 를 만든다(중간 파일은 지운다). 실제 Word 쪽 나눔 그대로다. 둘 다 없으면 typst 근사 미리보기로 대신하고 경고를 낸다(쪽 나눔이 Word 와 다를 수 있다). 이미 만든 docx 는 `report_kit.py preview 보고서.docx` 로 다시 볼 수 있다.
 - Python API 를 쓸 때는 `sys.path.insert(0, "${CLAUDE_SKILL_DIR}/scripts")` 뒤 `from report_kit import Report, num`.
 - `--preview` 가 만든 `*_preview/sheet*.png`(4쪽씩 접촉 시트, 쪽별은 `p01.png` …) 를 **반드시 Read 로 열어** 배치를 눈으로 확인한다: 표가 설명 문단 바로 아래에 있는가, 그림·캡션이 같은 쪽에 있는가, 장 제목이 쪽 맨 아래에 홀로 남지 않았는가, 큰 그림 앞 쪽이 지나치게 비지 않았는가.
 - 빌더가 "그림 자동 맞춤"(한 일)과 "그림 배치 미해결"(못 한 일)을 출력한다. 미해결이 있으면 파일은 써지지만 종료 코드 3 이다. 미해결마다 W10 3) 표대로 원천을 고치거나 `regen` 을 달아 다시 빌드하고, **미해결 0건이 될 때까지 반복**한다. 자동 맞춤 기록도 미리보기로 결과를 눈으로 확인한다.
@@ -130,12 +127,12 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/report_kit.py build 원고.md --format pdf -
 ## 파일
 - `SKILL.md` - 절차·내용 범위 규칙·강제 규칙·검수 체크리스트(이 파일)
 - `references/rules.md` - F 부 형식 명세(지면·블록·장 구성), W 부 작성 규칙(문장·표·캡션·그림 파일, 원천 그림의 보고서판 W10)
-- `scripts/report_kit.py` - markdown/Python → Word(.docx, python-docx) 또는 typst → PDF, Word·typst 미리보기 PNG, 금지 문자·숫자 표기·그림 배치 검사, `doctor`/`setup`. 지면 스타일(Word 는 `_Docx`, PDF 는 typst 전문)도 이 안에 있다
+- `scripts/report_kit.py` - markdown/Python → Word(.docx, python-docx), Word 미리보기 PNG(없으면 typst 근사), 금지 문자·숫자 표기·그림 배치 검사, `doctor`/`setup`. 지면 스타일(`_Docx`)도 이 안에 있다
 - `examples/example_report.md`, `examples/make_example_figs.py` - markdown 문법의 살아 있는 예제. `doctor --build` 가 이 둘로 자기 검증한다
-- `fonts/` - (선택, PDF 용) 폴더째 복사할 때 폰트를 같이 넣는 자리(git 제외). 없으면 `setup` 이 사용자 데이터 폴더에 받는다
+- `fonts/` - (선택, 근사 미리보기용) 폴더째 복사할 때 폰트를 같이 넣는 자리(git 제외). 없으면 `setup` 이 사용자 데이터 폴더에 받는다
 
 ## 의존성
-사람이 갖출 것은 Python 3 뿐이다. Word 는 pip 패키지 `python-docx`, PDF 는 `typst` 가 맡고, 시스템 라이브러리나 관리자 권한은 필요 없다. Word 미리보기는 PC 에 있는 Microsoft Word 또는 LibreOffice 를 쓰고, 없으면 typst 근사 미리보기로 대신한다. `matplotlib` 은 그림 스크립트를 돌릴 때만, `Pillow`·`PyMuPDF` 는 그림 여백 자르기·미리보기에 쓰는 선택 사항이다. `report_kit.py setup` 이 python-docx·typst 와 폰트를 준비한다.
+사람이 갖출 것은 Python 3 뿐이다. Word 는 pip 패키지 `python-docx` 가 맡고, 시스템 라이브러리나 관리자 권한은 필요 없다. 미리보기는 PC 에 있는 Microsoft Word 또는 LibreOffice 를 쓰고, 없으면 `typst` 근사 미리보기로 대신한다. `matplotlib` 은 그림 스크립트를 돌릴 때만, `Pillow`·`PyMuPDF` 는 그림 여백 자르기·미리보기에 쓰는 선택 사항이다. `report_kit.py setup` 이 python-docx·typst 와 폰트를 준비한다.
 
 ## 검수 체크리스트
 빌드 후 미리보기(`*_preview/sheet*.png`, Word 산출물은 Word 렌더)를 보며 항목마다 ✅/❌/N/A 를 붙여 보고한다. ❌ 는 고치고 재검한다. 괄호는 `references/rules.md` 의 절 번호(F 부·W 부).

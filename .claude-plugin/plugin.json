@@ -1,10 +1,10 @@
 {
   "name": "report-format",
-  "version": "3.0.0",
-  "description": "주제와 무관한 A4 한글 기술 보고서 빌더. markdown 원고 → Word(.docx, 기본) 또는 PDF, Word 미리보기, 숫자·대시·그림 배치 자동 점검, 내용 범위 규칙",
+  "version": "3.1.0",
+  "description": "주제와 무관한 A4 한글 기술 보고서 Word(.docx) 빌더. markdown 원고 → .docx, Word 미리보기, 숫자·대시·그림 배치 자동 점검, 내용 범위 규칙",
   "author": {
     "name": "kybeen0521",
     "url": "https://github.com/kybeen0521"
   },
-  "keywords": ["report", "docx", "word", "pdf", "korean", "typst"]
+  "keywords": ["report", "docx", "word", "korean"]
 }
