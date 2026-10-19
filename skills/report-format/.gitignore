@@ -1,0 +1,5 @@
+fonts/
+.omc/
+*_preview/
+.venv/
+__pycache__/
