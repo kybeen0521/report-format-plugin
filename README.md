@@ -4,16 +4,35 @@ A4 한글 기술 보고서를 일정한 형식의 Word(.docx)로 만드는 Claud
 
 ## 설치
 
-Claude Code 에서:
+### 방법 1. Claude Code 터미널(대화창)에서
 
 ```
 /plugin marketplace add kybeen0521/report-format-plugin
 /plugin install report-format@report-format
 ```
 
-로컬 폴더에서 설치할 때는 `/plugin marketplace add /경로/report-format-plugin`.
+### 방법 2. 셸 명령으로 (VS Code 확장 등 `/plugin` 을 쓸 수 없는 환경)
 
-설치 후 처음 한 번 환경을 준비한다(python-docx·typst 설치, PDF 용 한글 폰트 내려받기). Claude 에게 "보고서 환경 준비해줘"라고 하거나 직접:
+VS Code 확장의 채팅창에서는 `/plugin` 이 "isn't available in this environment" 로 막힌다. 아무 터미널에서 아래를 실행한다.
+
+```
+claude plugin marketplace add kybeen0521/report-format-plugin
+claude plugin install report-format@report-format
+```
+
+설치 후 Claude Code 세션(VS Code 창 포함)을 새로 열면 스킬이 잡힌다.
+
+### 갱신·삭제
+
+```
+claude plugin marketplace update report-format
+claude plugin update report-format@report-format
+claude plugin uninstall report-format@report-format
+```
+
+### 처음 한 번: 환경 준비
+
+python-docx·typst 를 설치하고 PDF 용 한글 폰트를 내려받는다. Claude 에게 "보고서 환경 준비해줘"라고 하거나 직접:
 
 ```
 python3 <설치 위치>/skills/report-format/scripts/report_kit.py setup
